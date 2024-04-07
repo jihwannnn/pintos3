@@ -28,6 +28,9 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/* Sleep list */
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -92,7 +95,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  list_init (&sleep_list);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -322,6 +325,38 @@ thread_yield (void)
   intr_set_level (old_level);
 }
 
+/* Sleep method */
+void
+thread_sleep (int64_t ticks)
+{
+  struct thread *cur = thread_current ();
+  enum intr_level old_level;
+
+  ASSERT (!intr_context ());
+  
+  
+  old_level = intr_disable();
+  cur->wticks = ticks;
+  list_push_back (&sleep_list, &cur->elem);  
+  thread_block();
+  intr_set_level (old_level);
+}
+
+void
+thread_wakeup (int64_t ticks)
+{
+  struct list_elem *e = list_begin (&sleep_list);
+  
+  while (e != list_end (&sleep_list)){
+   struct thread *t = list_entry (e, struct thread, elem);
+   if (t->wticks <= ticks){
+     e = list_remove (e);
+     thread_unblock (t);
+   }
+   else
+    e = list_next(e);
+  }
+}
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
 void

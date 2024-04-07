@@ -74,6 +74,24 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+
+bool thread_priority_scheduling (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+  struct thread *ra = list_entry(a, struct thread, elem);
+  struct thread *rb = list_entry(b, struct thread, elem);
+  return ra->priority > rb->priority;
+}
+
+void priority_preemption (void)
+{
+  struct thread *cur = thread_current();
+  struct thread *t = list_entry(list_front(&ready_list), struct thread, elem);
+  if (cur != idle_thread)
+  {
+    if (t->priority > cur->priority)
+	thread_yield(); 
+  }
+}
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -186,7 +204,6 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -211,7 +228,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  priority_preemption();
   return tid;
 }
 
@@ -248,7 +265,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered (&ready_list, &t->elem, priority_scheduling, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -319,7 +336,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered(&ready_list, &cur->elem, priority_scheduling, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -336,22 +353,23 @@ thread_sleep (int64_t ticks)
   
   
   old_level = intr_disable();
-  cur->wticks = ticks
+  cur->wticks = ticks;
   list_push_back (&sleep_list, &cur->elem);  
   thread_block();
-  intr_set_level (old_level)
+  intr_set_level (old_level);
 }
 
 void
 thread_wakeup (int64_t ticks)
 {
-  struct list_elem *e = list_begin (&sleep_list)
+  struct list_elem *e = list_begin (&sleep_list);
   
   while (e != list_end (&sleep_list)){
    struct thread *t = list_entry (e, struct thread, elem);
    if (t->wticks <= ticks){
      e = list_remove (e);
      thread_unblock (t);
+     priority_preemption();
    }
    else
     e = list_next(e);
@@ -379,6 +397,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  priority_preemption();
 }
 
 /* Returns the current thread's priority. */
@@ -503,6 +522,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->init_priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
