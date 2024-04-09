@@ -364,6 +364,8 @@ thread_sleep (int64_t ticks)
 void
 thread_wakeup (int64_t ticks)
 {
+  enum intr_level old_level;
+  old_level = intr_disable();
   struct list_elem *e = list_begin (&sleep_list);
   
   while (e != list_end (&sleep_list)){
@@ -376,6 +378,7 @@ thread_wakeup (int64_t ticks)
    else
     e = list_next(e);
   }
+  intr_set_level(old_level);
 }
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */

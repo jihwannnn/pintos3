@@ -55,33 +55,24 @@ bool donate_priority_scheduling(const struct list_elem *a, const struct list_ele
   return ta->priority > tb->priority;
 }
 
-/* void refresh_donation (struct lock *lock)
+void 
+refresh_donation (struct lock *lock)
 {
   struct thread *cur = thread_current();
   struct list *dlist = &(cur->donation_list);
   struct list_elem *e;
-  struct thread *t;
 
   if(list_empty(dlist))
    return;
-  
-  size_t size = list_size(dlist);
-  int i = (int)size;
-  e = list_begin(dlist);
 
-  while(!(i==0))
+  for (e = list_front(dlist); e != list_end(dlist); e = list_next(e))
 {
-  t = list_entry(e, struct thread, donation_elem);
+  struct thread *t = list_entry(e, struct thread, donation_elem);
   if(t->wait_on_lock == lock)
     list_remove(&t->donation_elem);
+}
+}
 
-  if(e==list_end(dlist))
-   return;
-  e = list_next(e);
-  i--;
-}
-}
-*/
 
 
 
@@ -176,9 +167,8 @@ sema_up (struct semaphore *sema)
     thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
 }
   sema->value++;
-  if (!intr_context())
-    priority_preemption();
   intr_set_level (old_level);
+  priority_preemption();
 }
 
 static void sema_test_helper (void *sema_);
@@ -300,7 +290,7 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
   
-  /*refresh_donation(lock);*/ 
+  refresh_donation(lock); 
   refresh_priority();
   lock->holder = NULL;
   sema_up (&lock->semaphore);
