@@ -20,6 +20,7 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -84,13 +85,14 @@ bool thread_priority_scheduling (const struct list_elem *a, const struct list_el
 
 void priority_preemption (void)
 {
+  if (thread_current() == idle_thread)
+	return;
+  if (list_empty(&ready_list))
+	return;
   struct thread *cur = thread_current();
   struct thread *t = list_entry(list_front(&ready_list), struct thread, elem);
-  if (cur != idle_thread)
-  {
-    if (t->priority > cur->priority)
+  if (t->priority > cur->priority)
 	thread_yield(); 
-  }
 }
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -265,7 +267,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem, priority_scheduling, NULL);
+  list_insert_ordered (&ready_list, &t->elem, thread_priority_scheduling, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -336,7 +338,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered(&ready_list, &cur->elem, priority_scheduling, NULL);
+    list_insert_ordered(&ready_list, &cur->elem, thread_priority_scheduling, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -397,6 +399,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  refresh_priority();
   priority_preemption();
 }
 
@@ -524,6 +527,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->init_priority = priority;
   t->magic = THREAD_MAGIC;
+  t->wait_on_lock = NULL;
+  list_init(&(t->donation_list)); 
   list_push_back (&all_list, &t->allelem);
 }
 
@@ -640,3 +645,52 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+/*Priority donation*/
+void
+donate_priority (void)
+{
+
+  struct thread *cur = thread_current ();
+  struct lock *now_lock = cur->wait_on_lock;
+  int i = 0; 
+
+  int cur_priority = cur->priority;
+  struct thread *Lholder = now_lock->holder;
+
+  while (i<8)
+  {
+    Lholder->priority = cur_priority;
+    cur = Lholder;
+    if(cur->wait_on_lock == NULL)
+      return;
+    Lholder = cur->wait_on_lock->holder;
+    i++;
+  } 
+}
+
+void
+refresh_priority (void)
+{
+  struct thread *cur = thread_current();
+  struct list *dlist = &(cur->donation_list);
+  if (list_empty(dlist))
+  {
+    cur->priority = cur->init_priority;
+    return;
+  }
+  else
+{
+  struct thread *don = list_entry(list_front(dlist), struct thread, donation_elem);
+  cur->priority = don->priority;
+}
+}
+
+
+
+
+
+
+
+

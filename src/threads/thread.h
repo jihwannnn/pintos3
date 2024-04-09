@@ -4,7 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-
+#include "threads/synch.h"
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -23,6 +23,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
 
 /* A kernel thread or user process.
 
@@ -102,7 +103,13 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
     
-    int64_t wticks
+    int64_t wticks;
+
+    struct list donation_list;
+
+    struct list_elem donation_elem;
+    
+    struct lock *wait_on_lock;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -144,4 +151,7 @@ int thread_get_load_avg (void);
 
 bool thread_priority_scheduling (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 void priority_preemtption (void);
+
+void donate_priority(void);
+void refresh_priority(void);
 #endif /* threads/thread.h */

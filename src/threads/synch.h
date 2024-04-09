@@ -41,6 +41,16 @@ void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 
+bool sema_priority_scheduling(const struct list_elem *a, const struct list_elem *b, void *aux);
+bool donate_priority_scheduling(const struct list_elem *a, const struct list_elem*b, void *aux);
+
+struct semaphore_elem
+{
+  struct list_elem elem;
+  struct semaphore semaphore;
+};
+
+void refresh_donation(struct lock *lock);
 /* Optimization barrier.
 
    The compiler will not reorder operations across an
