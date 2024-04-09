@@ -401,8 +401,12 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  struct thread *cur = thread_current();
+  
+  cur->priority = new_priority;
+  cur->init_priority = new_priority;
   refresh_priority();
+  
   priority_preemption();
 }
 
@@ -658,13 +662,16 @@ donate_priority (void)
   struct thread *cur = thread_current ();
   struct lock *now_lock = cur->wait_on_lock;
   int i = 0; 
-
+  
+  if(now_lock == NULL)
+   return;
   int cur_priority = cur->priority;
   struct thread *Lholder = now_lock->holder;
 
   while (i<8)
   {
-    Lholder->priority = cur_priority;
+    if (cur_priority > Lholder->priority)
+      Lholder->priority = cur_priority;
     cur = Lholder;
     if(cur->wait_on_lock == NULL)
       return;
@@ -683,11 +690,9 @@ refresh_priority (void)
     cur->priority = cur->init_priority;
     return;
   }
-  else
-{
   struct thread *don = list_entry(list_front(dlist), struct thread, donation_elem);
-  cur->priority = don->priority;
-}
+  if (cur->init_priority < don->priority)
+    cur->priority = don->priority;
 }
 
 

@@ -1,4 +1,5 @@
 /* This file is derived from source code for the Nachos
+
    instructional operating system.  The Nachos copyright notice
    is reproduced in full below. */
 
@@ -41,8 +42,8 @@ bool sema_priority_scheduling(const struct list_elem *a, const struct list_elem 
   struct list *wa = &sa->semaphore.waiters;
   struct list *wb = &sb->semaphore.waiters;
  
-  struct thread *ta = list_entry(a, struct thread, elem);
-  struct thread *tb = list_entry(b, struct thread, elem);
+  struct thread *ta = list_entry(list_begin(wa), struct thread, elem);
+  struct thread *tb = list_entry(list_begin(wb), struct thread, elem);
 
   return ta->priority > tb->priority;
 }
@@ -292,6 +293,7 @@ lock_release (struct lock *lock)
   
   refresh_donation(lock); 
   refresh_priority();
+  
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }
@@ -373,7 +375,8 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters))
-{ 
+{
+    list_sort(&cond->waiters, sema_priority_scheduling, NULL); 
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
 
