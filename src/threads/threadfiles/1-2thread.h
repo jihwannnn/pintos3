@@ -1,5 +1,6 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
+
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
@@ -98,9 +99,6 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
-    int nice; /* BSD scheduler project */
-
-    int recent_cpu; /* BSD scheduler project */
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -156,17 +154,4 @@ void priority_preemtption (void);
 
 void donate_priority(void);
 void refresh_priority(void);
-
-void mlfqs_load_avg(void);
-void mlfqs_increment(void);
-void mlfqs_recent_cpu(struct thread *t);
-void mlfqs_recalc_recent_cpu(void);
-void mlfqs_priority (struct thread *t);
-void mlfqs_recalc_priority(void);
-void thread_mlfqs_tick(void);
-
-int thread_get_nice (void);
-void thread_set_nice (int);
-int thread_get_recent_cpu (void);
-int thread_get_load_avg (void);
 #endif /* threads/thread.h */
